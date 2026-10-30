@@ -1,0 +1,58 @@
+# Environment variables and local secrets
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Credentials and private keys
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+credentials*.json
+service-account*.json
+secrets*.json
+
+# Dependencies and generated builds
+node_modules/
+dist/
+dist-ssr/
+build/
+coverage/
+server/generated/prisma/
+
+# Local databases and runtime data
+*.db
+*.sqlite
+*.sqlite3
+uploads/
+
+# Logs and debug output
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Local editor, OS, and assistant state
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.suo
+*.user
+*.swp
+*.swo
+.claude/
+.windsurf/
+.codex/
+.agents/
+
+# Temporary and machine-local files
+*.local
+.cache/
+tmp/
+temp/

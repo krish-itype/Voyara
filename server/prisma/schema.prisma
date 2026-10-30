@@ -1,0 +1,364 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+enum UserRole {
+  TRAVELER
+  VENDOR
+  ADMIN
+}
+
+enum AccountStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum VendorStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ListingType {
+  TOUR
+  VILLA
+}
+
+enum ListingStatus {
+  DRAFT
+  PENDING
+  APPROVED
+  REJECTED
+  ARCHIVED
+}
+
+enum EnquiryStatus {
+  NEW
+  IN_PROGRESS
+  CLOSED
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+enum PaymentStatus {
+  UNPAID
+  PAID
+  REFUNDED
+}
+
+enum ReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model User {
+  id            Int           @id @default(autoincrement())
+  firstName     String        @db.VarChar(100)
+  lastName      String        @db.VarChar(100)
+  email         String        @unique @db.VarChar(191)
+  passwordHash  String        @db.VarChar(255)
+  phone         String?       @db.VarChar(30)
+  avatarUrl     String?       @db.VarChar(500)
+  role          UserRole      @default(TRAVELER)
+  status        AccountStatus @default(ACTIVE)
+  emailVerified Boolean       @default(false)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  vendorProfile VendorProfile?
+  listings      Listing[]      @relation("VendorListings")
+  favorites     Favorite[]
+  enquiries     Enquiry[]
+  bookings      Booking[]
+  reviews       Review[]
+  messages      Message[]
+  adminAudits   AdminAudit[]   @relation("AdminAuditActor")
+
+  @@map("users")
+}
+
+model VendorProfile {
+  id             Int          @id @default(autoincrement())
+  userId         Int          @unique
+  agencyName     String       @db.VarChar(191)
+  description    String?      @db.LongText
+  website        String?      @db.VarChar(500)
+  address        String?      @db.VarChar(255)
+  city           String?      @db.VarChar(100)
+  country        String?      @db.VarChar(100)
+  registrationNo String?      @db.VarChar(100)
+  status         VendorStatus @default(PENDING)
+  rejectionNote  String?      @db.Text
+  verifiedAt     DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("vendor_profiles")
+}
+
+model Category {
+  id          Int       @id @default(autoincrement())
+  name        String    @db.VarChar(100)
+  slug        String    @unique @db.VarChar(120)
+  description String?   @db.Text
+  active      Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  listings    Listing[]
+
+  @@map("categories")
+}
+
+model Destination {
+  id          Int       @id @default(autoincrement())
+  name        String    @db.VarChar(120)
+  slug        String    @unique @db.VarChar(140)
+  country     String    @db.VarChar(100)
+  description String?   @db.LongText
+  imageUrl    String?   @db.VarChar(500)
+  active      Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  listings    Listing[]
+
+  @@map("destinations")
+}
+
+model Listing {
+  id              Int           @id @default(autoincrement())
+  vendorId        Int
+  categoryId      Int
+  destinationId   Int
+  type            ListingType
+  status          ListingStatus @default(DRAFT)
+  title           String        @db.VarChar(191)
+  slug            String        @unique @db.VarChar(220)
+  summary         String        @db.Text
+  description     String        @db.LongText
+  location        String        @db.VarChar(255)
+  price           Decimal       @db.Decimal(10, 2)
+  originalPrice   Decimal?      @db.Decimal(10, 2)
+  specialPrice    Decimal?      @db.Decimal(10, 2)
+  currency        String        @default("USD") @db.Char(3)
+  durationDays    Int?
+  bedrooms        Int?
+  bathrooms       Int?
+  maxGuests       Int           @default(1)
+  latitude        Decimal?      @db.Decimal(10, 7)
+  longitude       Decimal?      @db.Decimal(10, 7)
+  featured        Boolean       @default(false)
+  specialStartsAt DateTime?
+  specialEndsAt   DateTime?
+  rejectionNote   String?       @db.Text
+  publishedAt     DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  vendor       User                  @relation("VendorListings", fields: [vendorId], references: [id])
+  category     Category              @relation(fields: [categoryId], references: [id])
+  destination  Destination           @relation(fields: [destinationId], references: [id])
+  images       ListingImage[]
+  itinerary    ItineraryDay[]
+  availability ListingAvailability[]
+  favorites    Favorite[]
+  enquiries    Enquiry[]
+  bookings     Booking[]
+  reviews      Review[]
+
+  @@index([vendorId])
+  @@index([categoryId])
+  @@index([destinationId])
+  @@index([type, status])
+  @@map("listings")
+}
+
+model ListingImage {
+  id        Int      @id @default(autoincrement())
+  listingId Int
+  url       String   @db.VarChar(500)
+  altText   String?  @db.VarChar(255)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@index([listingId])
+  @@map("listing_images")
+}
+
+model ItineraryDay {
+  id          Int    @id @default(autoincrement())
+  listingId   Int
+  dayNumber   Int
+  title       String @db.VarChar(191)
+  description String @db.Text
+
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@unique([listingId, dayNumber])
+  @@map("itinerary_days")
+}
+
+model ListingAvailability {
+  id             Int      @id @default(autoincrement())
+  listingId      Int
+  availableDate  DateTime @db.Date
+  available      Boolean  @default(true)
+  availableUnits Int      @default(1)
+  priceOverride  Decimal? @db.Decimal(10, 2)
+
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@unique([listingId, availableDate])
+  @@map("listing_availability")
+}
+
+model Favorite {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  listingId Int
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, listingId])
+  @@map("favorites")
+}
+
+model Enquiry {
+  id         Int           @id @default(autoincrement())
+  travelerId Int
+  listingId  Int
+  checkIn    DateTime?     @db.Date
+  checkOut   DateTime?     @db.Date
+  guests     Int           @default(1)
+  message    String        @db.LongText
+  status     EnquiryStatus @default(NEW)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  traveler User      @relation(fields: [travelerId], references: [id])
+  listing  Listing   @relation(fields: [listingId], references: [id])
+  messages Message[]
+
+  @@index([travelerId])
+  @@index([listingId])
+  @@map("enquiries")
+}
+
+model Message {
+  id        Int       @id @default(autoincrement())
+  enquiryId Int
+  senderId  Int
+  content   String    @db.LongText
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  enquiry Enquiry @relation(fields: [enquiryId], references: [id], onDelete: Cascade)
+  sender  User    @relation(fields: [senderId], references: [id])
+
+  @@index([enquiryId])
+  @@index([senderId])
+  @@map("messages")
+}
+
+model Booking {
+  id            Int           @id @default(autoincrement())
+  bookingCode   String        @unique @db.VarChar(30)
+  travelerId    Int
+  listingId     Int
+  checkIn       DateTime      @db.Date
+  checkOut      DateTime?     @db.Date
+  guests        Int           @default(1)
+  totalAmount   Decimal       @db.Decimal(10, 2)
+  currency      String        @default("USD") @db.Char(3)
+  status        BookingStatus @default(PENDING)
+  paymentStatus PaymentStatus @default(UNPAID)
+  notes         String?       @db.Text
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  traveler User    @relation(fields: [travelerId], references: [id])
+  listing  Listing @relation(fields: [listingId], references: [id])
+
+  @@index([travelerId])
+  @@index([listingId])
+  @@map("bookings")
+}
+
+model Review {
+  id         Int          @id @default(autoincrement())
+  travelerId Int
+  listingId  Int
+  rating     Int
+  title      String?      @db.VarChar(191)
+  content    String       @db.Text
+  status     ReviewStatus @default(PENDING)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  traveler User    @relation(fields: [travelerId], references: [id])
+  listing  Listing @relation(fields: [listingId], references: [id])
+
+  @@unique([travelerId, listingId])
+  @@map("reviews")
+}
+
+model AdminAudit {
+  id         Int      @id @default(autoincrement())
+  actorId    Int?
+  action     String   @db.VarChar(100)
+  entityType String   @db.VarChar(100)
+  entityId   Int?
+  details    Json?
+  createdAt  DateTime @default(now())
+
+  actor User? @relation("AdminAuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([actorId])
+  @@map("admin_audits")
+}
+
+model ContactSubmission {
+  id        Int      @id @default(autoincrement())
+  fullName  String   @db.VarChar(150)
+  email     String   @db.VarChar(191)
+  phone     String?  @db.VarChar(30)
+  subject   String?  @db.VarChar(191)
+  message   String   @db.LongText
+  resolved  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@map("contact_submissions")
+}
+
+model NewsletterSubscriber {
+  id         Int      @id @default(autoincrement())
+  email      String   @unique @db.VarChar(191)
+  subscribed Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  @@map("newsletter_subscribers")
+}
+
+model SiteSetting {
+  id        Int      @id @default(autoincrement())
+  key       String   @unique @db.VarChar(100)
+  value     String   @db.LongText
+  updatedAt DateTime @updatedAt
+
+  @@map("site_settings")
+}
